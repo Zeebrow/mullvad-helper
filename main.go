@@ -25,9 +25,8 @@ commands:
 
 func doArgs() {
 	var getCountries bool
-	var getCountryRelays, getCities, getRelays string
+	var getCities, getRelays string
 	flag.BoolVar(&getCountries, "get-countries", false, "list only the available countries in which a relay is available")
-	flag.StringVar(&getCountryRelays, "get-country-relays", "none", "list the available relays available in a country")
 	flag.StringVar(&getCities, "get-cities", "none", "list the available cities in which a relay is available for a country")
 	flag.StringVar(&getRelays, "get-relays", "none", "list the available relays acailable for a city")
 	flag.Parse()
@@ -41,7 +40,7 @@ func doArgs() {
 		os.Exit(1)
 	}
 	if getCountries {
-		countryList := relaysJson.GetCountries()
+		countryList := relaysJson.GetCountryNames()
 		for _, c := range countryList {
 			fmt.Println(c)
 		}
@@ -59,21 +58,37 @@ func doArgs() {
 		os.Exit(0)
 	}
 	if getRelays != "none" {
-		for _, c := range relaysJson.Countries {
-			for _, city := range c.Cities {
-				if (city.Name == getRelays) || (city.Code == getRelays) {
-					for _, relay := range city.GetRelays() {
-						fmt.Println(relay)
-					}
-					os.Exit(0)
-				}
+		if relaysJson.IsCountry(getRelays) {
+			country, _ := relaysJson.GetCountry(getRelays)
+			fmt.Printf("%s (%s) - All relays\n", country.Name, country.Code)
+			country, err := relaysJson.GetCountry(getRelays)
+			if err != nil {
+				fmt.Println(err)
 			}
+			relays := country.GetRelays()
+			for _, r := range relays {
+				fmt.Printf("\t%s\n", r.PrintableRelay())
+			}
+			os.Exit(0)
+		} else if relaysJson.IsCity(getRelays) {
+			rtnCity, err := relaysJson.GetCity(getRelays)
+			if err != nil {
+				fmt.Println(err)
+			}
+			// nice to have: get country name when city is provided
+			country, _ := relaysJson.GetCountryFromCity(getRelays)
+			fmt.Printf("%s (%s) - %s (%s)\n", country.Name, country.Code, rtnCity.Name, rtnCity.Code)
+			for _, r := range rtnCity.Relays {
+				fmt.Printf("\t%s\n", r.PrintableRelay())
+			}
+			os.Exit(0)
 		}
 		os.Exit(1)
+
+		fmt.Println(getCountries)
+		fmt.Println(getCities)
+		fmt.Println(getRelays)
 	}
-	fmt.Println(getCountries)
-	fmt.Println(getCities)
-	fmt.Println(getRelays)
 }
 
 func main() {
